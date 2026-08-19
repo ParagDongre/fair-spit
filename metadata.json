@@ -1,0 +1,8 @@
+{
+  "name": "Fair Split",
+  "description": "AI-powered restaurant bill splitting tool that computes fair, fully-reconciled per-person breakdowns from receipt images and plain-English descriptions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
