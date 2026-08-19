@@ -35,7 +35,7 @@ Fair Split pairs multimodal vision OCR and natural language understanding with a
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/fair-split.git
+git clone https://github.com/ParagDongre/fair-spit.git
 cd fair-split
 
 # 2. Install all dependencies
