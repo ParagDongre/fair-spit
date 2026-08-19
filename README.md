@@ -206,7 +206,55 @@ We strictly delegated **vision OCR and semantic mapping** to Gemini, while execu
 3. **Auditability & Anomaly Detection**: When a receipt contains genuine calculation discrepancies, code detects the mismatch immediately and flags it without hallucinating fake line items.
 
 ---
+## 🛠️ How It Was Built (Development Process & Implementation Details)
 
+Fair Split was engineered from the ground up with a **math-first, decoupled AI architecture**. Here is the exact step-by-step process of how the system was built:
+
+### 1. Phase 1: Pure Mathematical Engine First (TypeScript)
+Before writing any AI prompts or frontend code, we built and tested the deterministic arithmetic engine (`server/fairness-engine.ts`):
+- **Integer Paise Arithmetic**: Avoided JavaScript floating-point errors (`0.1 + 0.2 !== 0.3`) by scaling all currency calculations to integer paise (cents).
+- **Hare-Niemeyer (Largest Remainder) Algorithm**: Implemented proportional distribution for taxes, service charges, and discounts so that integer rounding never loses a single rupee.
+- **Component Additivity Guarantee**: Enforced mathematical invariant tests so that for every individual:
+  $$\text{subtotal} + \text{service\_share} + \text{tax\_share} - \text{discount\_share} = \text{total}$$
+- **Settle-up Graph Matrix**: Built a directional debt resolution algorithm that calculates minimal transfer pairs (`from` $\rightarrow$ `to` $\rightarrow$ `amount`) based on who paid.
+
+---
+
+### 2. Phase 2: Multimodal AI Vision & Semantic Parsing (Gemini 3.7 Flash)
+We integrated Google's `@google/genai` SDK (`server/gemini.ts`) strictly for OCR vision and semantic intent extraction:
+- **Strict Structured JSON Schema**: Defined strict types (`Type.OBJECT`, `Type.ARRAY`, `Type.NUMBER`) so the model outputs predictable JSON without markdown codeblock drift.
+- **Negative Prompting Constraints**: Instructed the LLM:
+  - Extract **only** printed numbers; never fabricate prices or unlisted service charges.
+  - If no payer is named in the user description, return `paid_by: null` instead of guessing.
+  - If a user mentions an item not on the physical receipt, capture it in `unmatched_items_in_description` rather than adding phantom charges.
+- **Multi-Format Input Support**: Added base64 image parsing supporting PNG, JPEG, WEBP, and raw XML/SVG receipts.
+
+---
+
+### 3. Phase 3: Full-Stack API Layer (Express + TypeScript)
+We created a lightweight, high-performance Express server (`server.ts`):
+- Built `POST /api/split` accepting `{ receipt_base64, description }` with 25MB payload support for high-res receipt photos.
+- Orchestrated the two-step pipeline:
+  1. `extractReceiptAndAssignments()` (Multimodal AI extraction)
+  2. `calculateFairSplit()` (Deterministic math & reconciliation)
+- Integrated Vite middleware to run both the API backend and frontend SPA under a single port (`3000`) for seamless local development and deployment.
+
+---
+
+### 4. Phase 4: Interactive React Frontend & Audit Inspector (React 19 + Tailwind CSS v4)
+We built an interactive UI (`src/App.tsx` and `src/components/`):
+- **Live Receipt Preview**: Displays the uploaded receipt alongside the plain-English dining notes.
+- **Interactive Split Cards**: Color-coded diner breakdowns showing itemized dishes, proportional taxes, and final totals.
+- **Reconciliation & Settle-up Ledger**: Clear badges confirming whether totals match the bill, plus one-click copyable settle-up payment instructions.
+- **Interactive JSON Inspector**: Raw API response viewer with syntax highlighting for auditors and developers.
+- **Preset Benchmarks**: 4 instant-load benchmark receipts (R1–R4) for testing without needing to take a photo.
+
+---
+
+### 5. Phase 5: Automated Testing & Edge-Case Hardening
+We authored a 18-suite offline test framework (`tests/fairness.test.ts`):
+- Validated all benchmark receipts (R1 Brew & Bite, R2 Tamarind Kitchen, R3 The Daily Grind, R4 Spice Route).
+- Stress-tested edge cases: missing payers, 5-way odd splits on prime totals, zero service charge bills, unassigned items, and malformed inputs.
 ## 🛡 Edge Cases Considered & Handled
 
 | Edge Case | Scenario Example | System Handling Behavior | Verified In |
